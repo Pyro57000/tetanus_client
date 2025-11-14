@@ -18,7 +18,11 @@ pub async fn rec_message(mut rx: Receiver<Message>) {
         let rx_res = rx.try_recv();
         if rx_res.is_ok() {
             let message = rx_res.unwrap();
-            println!("{}", message.content);
+            if message.content.to_lowercase().contains("error") {
+                print_error(&message.content, None);
+            } else {
+                print_success(&message.content);
+            }
             display = true;
         }
         if display {
@@ -38,6 +42,7 @@ pub async fn cli(
     print_success("started the CLI!");
     let mut commands = commands::build_tools();
     loop {
+        let mut valid_command = false;
         let settings = load_settings(&config_path, false);
         projects = load_projects(&config_path, false);
         if tool_tx.is_closed() {
@@ -61,9 +66,9 @@ pub async fn cli(
                 destination: Destination::Control,
                 content: String::from("exit"),
             };
+            valid_command = true;
             main_tx.send(message).await.unwrap();
         }
-        let mut valid_command = false;
         for toolcommand in &mut commands {
             let mut ready = true;
             if toolcommand.name == command_name {
@@ -75,9 +80,14 @@ pub async fn cli(
                         new_arg.name = req_arg;
                         args_vec.push(new_arg);
                     }
-                    println!("Required args:");
                     if args.len() < toolcommand.user_args.len() {
                         ready = false;
+                        print_error("not enough arguments provided!", None);
+                        let mut command_usage = format!("{}", toolcommand.name.clone());
+                        for arg in toolcommand.user_args.clone() {
+                            command_usage.push_str(&format!(" {}", &arg));
+                        }
+                        print_error("usage:", Some(command_usage));
                     }
                     if ready {
                         let mut position_count = 0;
@@ -121,7 +131,6 @@ pub async fn cli(
                         }
                         toolcommand.args = Some(args_vec);
                     }
-                    println!("args parsed!");
                 }
                 let mut message = Message {
                     source: Destination::Console,
@@ -140,7 +149,7 @@ pub async fn cli(
             let message = Message {
                 source: Destination::Console,
                 destination: Destination::Console,
-                content: String::from("command not found!"),
+                content: String::from("error: command not found!"),
             };
             tool_tx.send(message).await.unwrap();
         }

@@ -73,7 +73,6 @@ impl Table {
         output.push_str("|\n");
         spacer.push_str("|\n");
         output.push_str(&spacer);
-        output.push_str(&spacer);
         for data_line in self.data.clone() {
             let line_vec: Vec<&str> = data_line.split("|").collect();
             for id in 0..self.columns.len() {
