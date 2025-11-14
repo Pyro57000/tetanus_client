@@ -1,0 +1,11 @@
+- [ ] local priv esc checks
+- [ ] byosi easily possible?
+- [ ] file enum
+- [ ] bloodhound
+- [ ] any admin?
+- [ ] any rdp?
+- [ ] certify
+- [ ] portscan
+- [ ] sql stuff
+- [ ] passwords in AD description?
+- [ ] password spray
