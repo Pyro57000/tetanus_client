@@ -1,17 +1,16 @@
-use std::io::Read;
-use std::path::PathBuf;
-use tokio::sync::mpsc::{Receiver, Sender, channel};
-
-use crate::Message;
 use crate::commands;
 use crate::commands::ToolArgument;
 use crate::commands::ToolCommand;
+use crate::lib::Message;
 use crate::load_projects;
 use crate::load_settings;
 use crate::network;
 use crate::print_error;
-use crate::{Destination, Project, get_user_input, lib::Table, print_success};
+use crate::{get_user_input, lib::Destination, lib::Project, lib::Table, print_success};
+use std::io::Read;
+use std::path::PathBuf;
 use tokio;
+use tokio::sync::mpsc::{Receiver, Sender, channel};
 
 pub async fn rec_message(mut rx: Receiver<Message>) {
     let mut display = true;
@@ -23,7 +22,7 @@ pub async fn rec_message(mut rx: Receiver<Message>) {
             display = true;
         }
         if display {
-            println!("command?");
+            println!("\n\ncommand?");
             display = false;
         }
     }

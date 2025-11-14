@@ -79,7 +79,7 @@ pub fn get_user_input(prompt: &str) -> String {
     return response.trim().to_string();
 }
 
-pub fn load_projects(path: &PathBuf, display: bool) -> Vec<Project> {
+pub fn load_projects(path: &PathBuf, display: bool) -> Vec<lib::Project> {
     let mut projects_path = path.clone();
     projects_path.pop();
     projects_path.push("projects");
@@ -95,7 +95,7 @@ pub fn load_projects(path: &PathBuf, display: bool) -> Vec<Project> {
     let mut projects = Vec::new();
     for res in project_dir {
         if res.is_ok() {
-            let mut new_project = Project::default();
+            let mut new_project = lib::Project::default();
             let entry = res.unwrap();
             let file_name = entry.file_name().to_string_lossy().to_string();
             if file_name.contains(".conf") {
@@ -152,7 +152,7 @@ pub fn load_projects(path: &PathBuf, display: bool) -> Vec<Project> {
     return projects;
 }
 
-pub fn save_project(project: &Project, config_path: &PathBuf) {
+pub fn save_project(project: &lib::Project, config_path: &PathBuf) {
     let mut conf_open_options = OpenOptions::new();
     if config_path.exists() {
         conf_open_options.append(true);
@@ -313,7 +313,7 @@ async fn main() {
             let rx_rex = main_rx.try_recv();
             if rx_rex.is_ok() {
                 let message = rx_rex.unwrap();
-                if message.destination == Destination::Control {
+                if message.destination == lib::Destination::Control {
                     match message.content.as_str() {
                         "exit" => {
                             input_handle.abort();

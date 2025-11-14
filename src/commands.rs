@@ -1,6 +1,6 @@
-use crate::Destination;
-use crate::Message;
-use crate::Project;
+use crate::lib::Destination;
+use crate::lib::Message;
+use crate::lib::Project;
 use crate::lib::Table;
 use crate::print_error;
 use crate::print_success;
@@ -158,7 +158,6 @@ pub fn new_project(args: Option<Vec<ToolArgument>>) -> String {
             &project_path.display().to_string()
         );
     }
-    let conf_file = file_create_res.unwrap();
     files_path.push(&name);
     notes_path.push(&name);
     let files_dir_res = create_dir_all(&files_path);
@@ -182,5 +181,7 @@ pub fn new_project(args: Option<Vec<ToolArgument>>) -> String {
     new_project.current = false;
     new_project.boxname = format!("{}_{}", template_box, name);
     save_project(&new_project, &project_path);
-    return String::from("Success!");
+    print_success("folder structure and config file created successfully!");
+    println!("setting up default notes...");
+    return new_project.generate_default_notes(&config_path);
 }

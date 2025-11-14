@@ -6,9 +6,9 @@ use walkdir::WalkDir;
 
 #[derive(Default, Clone)]
 pub struct Table {
-    columns: Vec<usize>,
-    headers: String,
-    data: Vec<String>,
+    pub columns: Vec<usize>,
+    pub headers: String,
+    pub data: Vec<String>,
 }
 
 impl Table {
@@ -112,15 +112,15 @@ impl Table {
 }
 
 pub struct Server {
-    address: String,
-    id: usize,
+    pub address: String,
+    pub id: usize,
 }
 
 #[derive(Clone)]
 pub struct Message {
-    source: Destination,
-    destination: Destination,
-    content: String,
+    pub source: Destination,
+    pub destination: Destination,
+    pub content: String,
 }
 
 #[derive(Clone, PartialEq)]
@@ -132,11 +132,11 @@ pub enum Destination {
 
 #[derive(Default, Clone)]
 pub struct Project {
-    name: String,
-    files: PathBuf,
-    notes: PathBuf,
-    current: bool,
-    boxname: String,
+    pub name: String,
+    pub files: PathBuf,
+    pub notes: PathBuf,
+    pub current: bool,
+    pub boxname: String,
 }
 
 impl Project {
