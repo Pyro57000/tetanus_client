@@ -1,10 +1,10 @@
+use crate::get_user_input;
 use crate::lib::Destination;
 use crate::lib::Message;
 use crate::lib::Project;
 use crate::lib::Table;
 use crate::print_error;
 use crate::print_success;
-use crate::save_project;
 use std::fs::create_dir;
 use std::fs::create_dir_all;
 use std::fs::{File, OpenOptions, ReadDir, read_to_string};
@@ -20,6 +20,7 @@ pub struct ToolCommand {
     pub help: String,
     pub req_args: Vec<String>,
     pub user_args: Vec<String>,
+    pub optional_args: Vec<String>,
     pub args: Option<Vec<ToolArgument>>,
     pub func: fn(Option<Vec<ToolArgument>>) -> String,
 }
@@ -31,6 +32,7 @@ impl ToolCommand {
             help,
             req_args: Vec::new(),
             user_args: Vec::new(),
+            optional_args: Vec::new(),
             args: None,
             func,
         }
@@ -40,9 +42,13 @@ impl ToolCommand {
         if self.req_args.len() > 0 {
             if self.args.is_none() {
                 return String::from("Error: no arguments given, but arguments are required!");
-            } else if self.args.clone().unwrap().len() != self.req_args.len() + self.user_args.len()
-            {
-                return String::from("Error: the wrong number of args were supplied!");
+            } else {
+                let min_args = self.req_args.len() + self.user_args.len();
+                let max_args = min_args + self.optional_args.len();
+                let args_provided = self.args.clone().unwrap().len();
+                if args_provided > max_args || args_provided < min_args {
+                    return String::from("Error: the wrong number of args were supplied!");
+                }
             }
         }
         return (self.func)(self.args.clone());
@@ -53,6 +59,7 @@ impl ToolCommand {
 pub struct ToolArgument {
     pub name: String,
     pub user_supplied: bool,
+    pub optional: bool,
     pub position: Option<usize>,
     pub path: Option<PathBuf>,
     pub string: Option<String>,
@@ -86,6 +93,31 @@ pub fn build_tools() -> Vec<ToolCommand> {
     ];
     createproject.user_args = vec![String::from("name")];
     tool_commands.push(createproject);
+    let mut promoteproject = ToolCommand::new(
+        "promote_project".to_string(),
+        "promotes a project from upcoming to current, and sets up the distrobox.
+Optional arguments: home=/path/to/distrobox/home name=project_name_to_promote"
+            .to_string(),
+        promote_project,
+    );
+    promoteproject.req_args = vec![
+        String::from("projects"),
+        String::from("tools"),
+        String::from("files"),
+        String::from("notes"),
+        String::from("template"),
+    ];
+    promoteproject.optional_args = vec![String::from("home"), String::from("name")];
+    tool_commands.push(promoteproject);
+    let mut removeproject = ToolCommand::new(
+        "remove_project".to_string(),
+        "removes a project from the tool, deletes the files and notes, and deletes the distrobox."
+            .to_string(),
+        remove_project,
+    );
+    removeproject.optional_args = vec!["project".to_string()];
+    removeproject.req_args = vec!["projects".to_string()];
+    tool_commands.push(removeproject);
     return tool_commands;
 }
 
@@ -111,7 +143,6 @@ pub fn list_projects(args: Option<Vec<ToolArgument>>) -> String {
 }
 
 pub fn new_project(args: Option<Vec<ToolArgument>>) -> String {
-    println!("reached the new_project function");
     let given_args = args.unwrap();
     let mut config_path = PathBuf::new();
     let mut name = String::new();
@@ -180,8 +211,96 @@ pub fn new_project(args: Option<Vec<ToolArgument>>) -> String {
     new_project.notes = notes_path;
     new_project.current = false;
     new_project.boxname = format!("{}_{}", template_box, name);
-    save_project(&new_project, &project_path);
+    new_project.config = project_path;
+    println!("{}", new_project.config.display());
+    new_project.save_project();
     print_success("folder structure and config file created successfully!");
     println!("setting up default notes...");
     return new_project.generate_default_notes(&config_path);
+}
+
+pub fn promote_project(args: Option<Vec<ToolArgument>>) -> String {
+    let mut project = String::new();
+    let mut projects = Vec::new();
+    let mut files = PathBuf::new();
+    let mut notes = PathBuf::new();
+    let mut tools = PathBuf::new();
+    let mut template = String::new();
+    let mut home = None;
+    let mut given_args = Vec::new();
+    if args.is_some() {
+        given_args = args.unwrap();
+    }
+    for arg in given_args {
+        match arg.name.as_str() {
+            "name" => project = arg.string.clone().unwrap(),
+            "projects" => projects = arg.projects.clone().unwrap(),
+            "files" => files = arg.path.unwrap(),
+            "notes" => notes = arg.path.unwrap(),
+            "template" => template = arg.string.unwrap(),
+            "home" => home = arg.path,
+            "tools" => tools = arg.path.unwrap(),
+            _ => {}
+        }
+    }
+    let project_set = project.len() > 1;
+    if !project_set {
+        println!("{} : {}", project, project.len());
+        println!("{}", project.len() > 1);
+        let mut current_index = 0;
+        for existing_project in &projects {
+            println!("{}.) {}", current_index, existing_project.name);
+            current_index += 1;
+        }
+        let response: usize = get_user_input("which project would you like to promote?")
+            .parse()
+            .unwrap();
+        if response >= projects.len() {
+            return format!("error invalid project selection!");
+        }
+        project = projects[response].name.clone();
+    }
+    for mut existing_project in projects {
+        if existing_project.name == project {
+            let promote_res = existing_project.promote_project(
+                &files,
+                &notes,
+                template.clone(),
+                &tools,
+                home.clone(),
+            );
+            if !promote_res.to_lowercase().contains("success") {
+                return format!("Error promoting project!\n{}", promote_res);
+            }
+        }
+    }
+    return String::from("Success!");
+}
+
+pub fn remove_project(args: Option<Vec<ToolArgument>>) -> String {
+    let mut project = Project::default();
+    let mut projects = Vec::new();
+    if args.is_some() {
+        let given_args = args.unwrap();
+        for arg in given_args {
+            match arg.name.as_str() {
+                "project" => project = arg.project.unwrap(),
+                "projects" => projects = arg.projects.unwrap(),
+                _ => {}
+            }
+        }
+    }
+    if !project.name.len() > 1 {
+        let mut current_index = 0;
+        for project in &projects {
+            println!("{}.) {}", current_index, project.name);
+            current_index += 1;
+        }
+        let response: usize = get_user_input("project to remove?").parse().unwrap();
+        if response >= projects.len() {
+            return format!("error invalid project selection!");
+        }
+        project = projects[response].clone()
+    }
+    return project.remove_project();
 }

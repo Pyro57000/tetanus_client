@@ -145,6 +145,13 @@ pub fn install(config: &PathBuf) -> bool {
         settings.insert("current_notes".to_string(), get_user_input("full path to where you want your current project's notes stored example: /home/pyro/notes/current"));
         settings.insert("upcoming_files".to_string(),get_user_input("full path to where you want your upcoming project's files stored example: /home/pyro/projects/upcoming"));
         settings.insert("upcoming_notes".to_string(), get_user_input("full path to where you want your upcoming project's notes stored exmple: /home/pyro/notes/upcoming"));
+        settings.insert(
+            "tools".to_string(),
+            get_user_input(
+                "full path to where you store your custom tools (like those from github)?",
+            ),
+        );
+        settings.insert("terminal".to_string(), get_user_input("command used to launch your terminal while executing a command (for exmaple konsole in kde is konsole -e)?"));
         print_success("sweet, we have all we need, writing config file...");
         let out_file_res = File::create_new(&config_file);
         if out_file_res.is_err() {

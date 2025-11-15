@@ -122,6 +122,7 @@ pub fn load_projects(path: &PathBuf, display: bool) -> Vec<lib::Project> {
                                 new_project.notes = PathBuf::from(line_vec[1]);
                             }
                             "boxname" => new_project.boxname = String::from(line_vec[1]),
+                            "config" => new_project.config = PathBuf::from(line_vec[1]),
                             _ => {
                                 print_error(
                                     "unknown setting discoverd in project config file!",
@@ -150,33 +151,6 @@ pub fn load_projects(path: &PathBuf, display: bool) -> Vec<lib::Project> {
         }
     }
     return projects;
-}
-
-pub fn save_project(project: &lib::Project, config_path: &PathBuf) {
-    let mut conf_open_options = OpenOptions::new();
-    if config_path.exists() {
-        conf_open_options.append(true);
-    } else {
-        conf_open_options.create(true);
-    }
-    let conf_open_create_res = conf_open_options.open(config_path);
-    if conf_open_create_res.is_err() {
-        print_error(
-            "error opening project config path!",
-            Some(format!("{}", conf_open_create_res.err().unwrap())),
-        );
-        return;
-    }
-    let mut conf_file = conf_open_create_res.unwrap();
-    let config_string = format!(
-        "name|{}\nstage|upcoming\nfiles|{}\nnotes|{}\nboxname|{}",
-        project.name,
-        project.files.display(),
-        project.notes.display(),
-        project.boxname
-    );
-    write!(conf_file, "{}", config_string).unwrap();
-    print_success("project saved!");
 }
 
 pub fn load_settings(config_path: &PathBuf, display: bool) -> HashMap<String, String> {

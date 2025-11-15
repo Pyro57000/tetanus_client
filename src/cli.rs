@@ -100,13 +100,28 @@ pub async fn cli(
                             args_vec.push(new_arg);
                             position_count += 1;
                         }
+                        for given_arg in &args {
+                            if given_arg.contains("=") {
+                                for optional_arg in toolcommand.optional_args.clone() {
+                                    let arg_vec: Vec<&str> = given_arg.split("=").collect();
+                                    if arg_vec[0].to_string() == optional_arg {
+                                        println!("arg found {}", optional_arg);
+                                        let mut new_arg = ToolArgument::default();
+                                        new_arg.name = optional_arg;
+                                        new_arg.string = Some(arg_vec[1].trim().to_string());
+                                        new_arg.optional = true;
+                                        args_vec.push(new_arg);
+                                    }
+                                }
+                            }
+                        }
                     }
                     if ready {
                         for arg in &mut args_vec {
                             let iargs = args.clone();
                             if arg.user_supplied {
                                 arg.string = Some(iargs[arg.position.unwrap()].clone());
-                            } else {
+                            } else if !arg.optional {
                                 match arg.name.as_str() {
                                     "projects" => arg.projects = Some(projects.clone()),
                                     "upcoming_files" => {
@@ -117,11 +132,23 @@ pub async fn cli(
                                         arg.path =
                                             Some(PathBuf::from(settings["upcoming_notes"].clone()))
                                     }
+                                    "files" => {
+                                        arg.path =
+                                            Some(PathBuf::from(settings["current_files"].clone()))
+                                    }
+                                    "notes" => {
+                                        arg.path =
+                                            Some(PathBuf::from(settings["current_notes"].clone()))
+                                    }
+                                    "tools" => {
+                                        arg.path = Some(PathBuf::from(settings["tools"].clone()))
+                                    }
                                     "template" => {
                                         arg.string =
                                             Some(String::from(settings["templatebox"].clone()))
                                     }
                                     "config" => arg.path = Some(config_path.clone()),
+                                    "terminal" => arg.string = Some(settings["terminal"].clone()),
                                     _ => print_error(
                                         &format!("unkown arg requested! {}", arg.name),
                                         None,
