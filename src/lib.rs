@@ -138,6 +138,7 @@ pub struct Project {
     pub files: PathBuf,
     pub notes: PathBuf,
     pub current: bool,
+    pub active: bool,
     pub boxname: String,
     pub config: PathBuf,
 }
@@ -288,10 +289,10 @@ impl Project {
         let mut conf_file = conf_open_create_res.unwrap();
         let mut config_string = format!(
             "name|{}\nfiles|{}\nnotes|{}\nboxname|{}\nconfig|{}\n",
-            self.name,
+            self.name.trim(),
             self.files.display(),
             self.notes.display(),
-            self.boxname,
+            self.boxname.trim(),
             self.config.display(),
         );
         if self.current {
@@ -352,6 +353,7 @@ impl Project {
             .arg("stop")
             .arg("--root")
             .arg(&self.boxname)
+            .arg("--yes")
             .status();
         if pdb_stop_res.is_err() {
             return format!(
@@ -363,6 +365,7 @@ impl Project {
             .arg("stop")
             .arg("--root")
             .arg(&template)
+            .arg("--yes")
             .status();
         if tdb_stop_res.is_err() {
             return format!(
@@ -376,6 +379,7 @@ impl Project {
             .arg("rm")
             .arg("--root")
             .arg(&self.boxname)
+            .arg("--yes")
             .status();
         if db_remove_res.is_err() {
             return format!(
@@ -395,6 +399,7 @@ impl Project {
             .arg(format!("{}:/tools:rw", tools.display()))
             .arg("--name")
             .arg(&self.boxname)
+            .arg("--yes")
             .status();
         if db_create_res.is_err() {
             return format!(

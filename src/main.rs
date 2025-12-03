@@ -4,6 +4,7 @@ use chacha20poly1305::aead::{Aead, AeadCore, KeyInit, OsRng};
 use chacha20poly1305::{ChaCha20Poly1305, Key};
 use clap::Parser;
 use colored::Colorize;
+use num_cpus;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions, read_dir, read_to_string};
 use std::io::{Read, Write};
@@ -14,6 +15,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use std::{thread, time};
 use tokio;
+use tokio::io::AsyncBufReadExt;
 use tokio::sync::mpsc::{Receiver, Sender, channel};
 
 mod cli;
@@ -103,31 +105,33 @@ pub fn load_projects(path: &PathBuf, display: bool) -> Vec<lib::Project> {
                 if conf_string_res.is_ok() {
                     let conf_string = conf_string_res.unwrap();
                     for line in conf_string.lines() {
-                        let line_vec: Vec<&str> = line.split("|").collect();
-                        match line_vec[0] {
-                            "name" => {
-                                new_project.name = line_vec[1].trim().to_string();
-                            }
-                            "stage" => {
-                                if line_vec[1].contains("current") {
-                                    new_project.current = true;
-                                } else {
-                                    new_project.current = false;
+                        if line.len() > 2 {
+                            let line_vec: Vec<&str> = line.split("|").collect();
+                            match line_vec[0] {
+                                "name" => {
+                                    new_project.name = line_vec[1].trim().to_string();
                                 }
-                            }
-                            "files" => {
-                                new_project.files = PathBuf::from(line_vec[1]);
-                            }
-                            "notes" => {
-                                new_project.notes = PathBuf::from(line_vec[1]);
-                            }
-                            "boxname" => new_project.boxname = String::from(line_vec[1]),
-                            "config" => new_project.config = PathBuf::from(line_vec[1]),
-                            _ => {
-                                print_error(
-                                    "unknown setting discoverd in project config file!",
-                                    None,
-                                );
+                                "stage" => {
+                                    if line_vec[1].contains("current") {
+                                        new_project.current = true;
+                                    } else {
+                                        new_project.current = false;
+                                    }
+                                }
+                                "files" => {
+                                    new_project.files = PathBuf::from(line_vec[1]);
+                                }
+                                "notes" => {
+                                    new_project.notes = PathBuf::from(line_vec[1]);
+                                }
+                                "boxname" => new_project.boxname = String::from(line_vec[1]),
+                                "config" => new_project.config = PathBuf::from(line_vec[1]),
+                                _ => {
+                                    print_error(
+                                        "unknown setting discoverd in project config file!",
+                                        Some(String::from(line_vec[0])),
+                                    );
+                                }
                             }
                         }
                     }
@@ -272,37 +276,35 @@ async fn main() {
     }
     let (main_tx, mut main_rx) = channel(1024);
     let (console_tx, console_rx) = channel(1024);
-    if !args.gui {
-        let input_handle = tokio::spawn(cli::cli(
-            projects,
-            main_tx.clone(),
-            console_tx.clone(),
-            server_address,
-            config_path,
+    let cpu_count = num_cpus::get_physical();
+    let thread_count = cpu_count / 2;
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .thread_name("root")
+        .worker_threads(thread_count / 2)
+        .max_blocking_threads(thread_count / 2)
+        .build()
+        .unwrap();
+    if args.gui {
+        println!("coming soon!");
+    } else {
+        let rt_handle = runtime.handle();
+        let handle = runtime.spawn(cli::cli(
+            console_tx,
+            console_rx,
+            main_tx,
+            config_path.clone(),
+            rt_handle.clone(),
         ));
-        thread::sleep(Duration::from_secs(1));
-        let output_handle = tokio::spawn(cli::rec_message(console_rx));
         loop {
-            sleep(Duration::from_secs(1));
-            let rx_rex = main_rx.try_recv();
-            if rx_rex.is_ok() {
-                let message = rx_rex.unwrap();
-                if message.destination == lib::Destination::Control {
-                    match message.content.as_str() {
-                        "exit" => {
-                            input_handle.abort();
-                            output_handle.abort();
-                            exit(0);
-                        }
-                        _ => {
-                            println!("unknown message recieved!");
-                            println!("{}", message.content);
-                        }
-                    }
+            let rx_res = main_rx.try_recv();
+            if rx_res.is_ok() {
+                let message = rx_res.unwrap();
+                if message.content == String::from("exit") {
+                    handle.abort();
+                    runtime.shutdown_background();
+                    break;
                 }
             }
         }
-    } else {
-        println!("gui coming soon!");
     }
 }
