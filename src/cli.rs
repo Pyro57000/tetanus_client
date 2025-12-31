@@ -1,6 +1,6 @@
 use crate::{
     commands::{ToolArgument, build_args, build_tools},
-    lib::{Destination, Message, Project},
+    lib::{self, Destination, Message, Project},
     load_projects, load_settings, print_error, print_success,
 };
 use std::{path::PathBuf, thread::sleep, time::Duration};
@@ -161,6 +161,30 @@ pub async fn cli(
             };
             main_tx.send(message).await.unwrap();
             break;
+        } else if user_command_name == String::from("help") {
+            let mut message = Message {
+                source: Destination::Console,
+                destination: Destination::Console,
+                content: String::new(),
+            };
+            if user_command_args.len() > 0 {
+                for command in &tool_commands {
+                    if command.name == user_command_args[0] {
+                        message.content = command.help.clone();
+                        console_tx.send(message.clone()).await.unwrap();
+                    }
+                }
+            } else {
+                let mut help_table = lib::Table::default();
+                let mut data = vec![format!("command|help")];
+                for command in &tool_commands {
+                    data.push(format!("{}|{}", command.name, command.help));
+                }
+                help_table.build(data);
+                message.content = help_table.get_table();
+                console_tx.send(message.clone()).await.unwrap();
+            }
+            continue;
         }
         let mut valid_command = false;
         let mut command_to_run = tool_commands[0].clone();
@@ -271,14 +295,18 @@ pub async fn cli(
                         "PROMPT" => {
                             let input_handle = tokio::spawn(console_user_input());
                             let response = input_handle.await.unwrap();
-                            command_tx
+                            let tx_res = command_tx
                                 .send(Message {
                                     source: Destination::Console,
                                     destination: Destination::Console,
                                     content: response.trim().to_string(),
                                 })
-                                .await
-                                .unwrap();
+                                .await;
+                            if tx_res.is_ok() {
+                                tx_res.unwrap();
+                            } else {
+                                break;
+                            }
                         }
                         "DONE" => {
                             break;

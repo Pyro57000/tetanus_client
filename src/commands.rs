@@ -321,7 +321,7 @@ pub fn new_project(
             "upcoming_notes" => {
                 notes_path = arg.path.unwrap();
             }
-            "template" => {
+            "templatebox" => {
                 template_box = arg.string.unwrap();
             }
             _ => {}
@@ -498,9 +498,10 @@ pub fn promote_project(
             content: projects_string,
         };
         tx.blocking_send(table_message).unwrap();
-        let (gotten_name, mut rx) = prompt_interactive(rx, tx.clone(), "project to promote?");
+        let (gotten_name, rx) = prompt_interactive(rx, tx.clone(), "project to promote?");
         let selection: usize = gotten_name.parse().unwrap();
         project = format!("{}", &projects[selection].name);
+        deinitialize_interactive(tx.clone());
     }
     for mut existing_project in projects {
         if existing_project.name == project {
@@ -519,7 +520,6 @@ pub fn promote_project(
             .unwrap();
         }
     }
-    deinitialize_interactive(tx.clone());
 }
 
 pub fn remove_project(args: Option<Vec<ToolArgument>>) -> String {
@@ -710,7 +710,7 @@ pub fn prompt_interactive(
 
 pub fn deinitialize_interactive(tx: Sender<Message>) {
     tx.blocking_send(Message {
-        source: Destination::Console,
+        source: Destination::Control,
         destination: Destination::Console,
         content: String::from("noninteractive"),
     })

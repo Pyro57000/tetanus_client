@@ -2,9 +2,13 @@ use colored::Colorize;
 use std::{
     fs::{File, OpenOptions, copy, create_dir_all, remove_dir_all, remove_file},
     io::Write,
+    ops::Index,
     path::PathBuf,
     process::Command,
+    slice::Windows,
 };
+use term_size::dimensions_stdout;
+use tokio::sync::OwnedMappedMutexGuard;
 use walkdir::WalkDir;
 
 #[derive(Default, Clone)]
@@ -158,6 +162,8 @@ impl Project {
             notes_template.push("phishing");
         } else if self.name.contains("webapp") {
             notes_template.push("webapp");
+        } else {
+            notes_template.push("external");
         }
         let walkdir = WalkDir::new(&notes_template);
         for res in walkdir {
